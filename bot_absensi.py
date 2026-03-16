@@ -1,17 +1,21 @@
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from datetime import datetime
+import pytz
 
 TOKEN = "8521724269:AAFyuMbyD91ipE-1pjela9MNFugAybx-pbU"
 
 data = {}
 
+# timezone Indonesia
+tz = pytz.timezone("Asia/Jakarta")
+
 def now():
-    return datetime.now().strftime("%H:%M:%S")
+    return datetime.now(tz).strftime("%H:%M:%S")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Bot aktif.\nGunakan:\n/checkin\n/breaktime\n/back\n/checkout"
+        "Bot aktif.\nGunakan:\n/checkin\n/break atau /rest\n/back\n/checkout"
     )
 
 async def checkin(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -19,7 +23,7 @@ async def checkin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data[user] = {"checkin": now()}
     await update.message.reply_text(f"✅ {user} check-in jam {data[user]['checkin']}")
 
-async def breaktime(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def break_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user.first_name
     await update.message.reply_text(f"☕ {user} mulai break jam {now()}")
 
@@ -38,7 +42,11 @@ def main():
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("checkin", checkin))
-    app.add_handler(CommandHandler("breaktime", breaktime))
+
+    # command break
+    app.add_handler(CommandHandler("break", break_time))
+    app.add_handler(CommandHandler("rest", break_time))
+
     app.add_handler(CommandHandler("back", back))
     app.add_handler(CommandHandler("checkout", checkout))
 
