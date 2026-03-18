@@ -4,21 +4,19 @@ from datetime import datetime, timedelta
 import pytz
 import os
 
-# Ambil TOKEN dari environment variable Railway
-TOKEN = os.getenv("8521724269:AAFyuMbyD91ipE-1pjela9MNFugAybx-pbU")
+# Ambil TOKEN dari Environment Variable Railway
+TOKEN = os.getenv("TOKEN")
 if not TOKEN:
-    raise RuntimeError("8521724269:AAFyuMbyD91ipE-1pjela9MNFugAybx-pbU")
+    raise RuntimeError("TOKEN bot belum di-set di Environment Variables")
 
-# Data absensi, keyed by user id agar unik
+# Data absensi, keyed by user ID agar unik
 data = {}
 
 # timezone Indonesia
 tz = pytz.timezone("Asia/Jakarta")
 
-
 def now():
     return datetime.now(tz)
-
 
 def format_duration(td):
     total_seconds = int(td.total_seconds())
@@ -29,123 +27,87 @@ def format_duration(td):
     else:
         return f"{minutes} menit"
 
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Bot aktif.\nGunakan:\n/checkin\n/break atau /rest\n/back\n/checkout"
     )
 
-
 async def checkin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_name = update.effective_user.first_name
-
     checkin_time = now()
     end_time = checkin_time + timedelta(hours=8)
-
-    data[user_id] = {
-        "name": user_name,
-        "checkin": checkin_time,
-        "break_start": None,
-        "total_break": timedelta()
-    }
-
+    data[user_id] = {"name": user_name, "checkin": checkin_time, "break_start": None, "total_break": timedelta()}
     await update.message.reply_text(
         f"✅ {user_name} check-in jam {checkin_time.strftime('%H:%M:%S')}\n"
         f"🕒 Jam kerja: {checkin_time.strftime('%H:%M:%S')} - {end_time.strftime('%H:%M:%S')}"
     )
 
-
 async def break_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-
     if user_id not in data or "checkin" not in data[user_id]:
         await update.message.reply_text("❌ Kamu belum check-in")
         return
-
     if data[user_id]["break_start"] is not None:
         await update.message.reply_text("⚠️ Kamu sudah dalam status break")
         return
-
     break_start = now()
     data[user_id]["break_start"] = break_start
     estimated_end = break_start + timedelta(hours=1)
-
     await update.message.reply_text(
         f"☕ {data[user_id]['name']} mulai break jam {break_start.strftime('%H:%M:%S')}\n"
         f"🕒 Perkiraan selesai break: {estimated_end.strftime('%H:%M:%S')}"
     )
 
-
 async def back(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-
     if user_id not in data or data[user_id].get("break_start") is None:
         await update.message.reply_text("❌ Kamu belum mulai break")
         return
-
     break_end = now()
     break_start = data[user_id]["break_start"]
-
     duration = break_end - break_start
     data[user_id]["total_break"] += duration
     data[user_id]["break_start"] = None
-
     msg = (
         f"🔙 {data[user_id]['name']} selesai break jam {break_end.strftime('%H:%M:%S')}\n"
         f"⏱ Durasi break: {format_duration(duration)}"
     )
-
     if duration > timedelta(hours=1):
         excess = duration - timedelta(hours=1)
         msg += f"\n⚠️ Kelebihan break: {format_duration(excess)}"
-
     await update.message.reply_text(msg)
-
 
 async def checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-
     if user_id not in data or "checkin" not in data[user_id]:
         await update.message.reply_text("❌ Kamu belum check-in")
         return
-
     checkout_time = now()
     checkin_time = data[user_id]["checkin"]
     total_break = data[user_id]["total_break"]
-
     work_duration = checkout_time - checkin_time - total_break
-
     msg = (
         f"🛑 {data[user_id]['name']} checkout jam {checkout_time.strftime('%H:%M:%S')}\n"
         f"⏱ Total kerja: {format_duration(work_duration)}"
     )
-
     if work_duration > timedelta(hours=8):
         overtime = work_duration - timedelta(hours=8)
         msg += f"\n🔥 Lembur: {format_duration(overtime)}"
-
     await update.message.reply_text(msg)
-
-    # reset data user
     del data[user_id]
-
 
 def main():
     print("Bot starting...")
-
     app = ApplicationBuilder().token(TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("checkin", checkin))
     app.add_handler(CommandHandler("break", break_time))
     app.add_handler(CommandHandler("rest", break_time))
     app.add_handler(CommandHandler("back", back))
     app.add_handler(CommandHandler("checkout", checkout))
-
     print("Bot running...")
     app.run_polling()
-
 
 if __name__ == "__main__":
     main()
