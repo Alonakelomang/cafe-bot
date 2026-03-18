@@ -2,8 +2,9 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from datetime import datetime, timedelta
 import pytz
+import os
 
-TOKEN = "8521724269:AAFyuMbyD91ipE-1pjela9MNFugAybx-pbU"
+TOKEN = os.getenv("8521724269:AAFyuMbyD91ipE-1pjela9MNFugAybx-pbU")  
 
 data = {}
 
@@ -19,7 +20,6 @@ def format_duration(td):
     total_seconds = int(td.total_seconds())
     hours = total_seconds // 3600
     minutes = (total_seconds % 3600) // 60
-
     if hours > 0:
         return f"{hours} jam {minutes} menit"
     else:
@@ -61,10 +61,15 @@ async def break_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ Kamu sudah dalam status break")
         return
 
-    data[user]["break_start"] = now()
+    break_start = now()
+    data[user]["break_start"] = break_start
+
+    # estimasi selesai break 1 jam dari sekarang
+    estimated_end = break_start + timedelta(hours=1)
 
     await update.message.reply_text(
-        f"☕ {user} mulai break jam {data[user]['break_start'].strftime('%H:%M:%S')}"
+        f"☕ {user} mulai break jam {break_start.strftime('%H:%M:%S')}\n"
+        f"🕒 Perkiraan selesai break: {estimated_end.strftime('%H:%M:%S')}"
     )
 
 
@@ -87,7 +92,6 @@ async def back(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⏱ Durasi break: {format_duration(duration)}"
     )
 
-    # cek kelebihan break
     if duration > timedelta(hours=1):
         excess = duration - timedelta(hours=1)
         msg += f"\n⚠️ Kelebihan break: {format_duration(excess)}"
@@ -113,7 +117,6 @@ async def checkout(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⏱ Total kerja: {format_duration(work_duration)}"
     )
 
-    # cek lembur
     if work_duration > timedelta(hours=8):
         overtime = work_duration - timedelta(hours=8)
         msg += f"\n🔥 Lembur: {format_duration(overtime)}"
